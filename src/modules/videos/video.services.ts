@@ -1,28 +1,29 @@
 import path from 'path';
+import workerpool from 'workerpool';
 import { deleteFile } from '../../lib/delete-file';
-import { Worker } from 'worker_threads';
 import { logger } from '../../lib/logger';
+import { InternalServerErrorException } from '../../lib/http-exception';
+
+const workerScriptFile = require.resolve(path.join(__dirname, '../../workers/convert-worker'));
+
+const pool = workerpool.pool(workerScriptFile, {
+    workerType: 'thread',
+    workerThreadOpts: {
+        execArgv: /\.ts$/.test(workerScriptFile) ? ['--require', 'ts-node/register'] : undefined,
+    },
+});
 
 class VideoServices {
     async convertVideoMovToMp4(inputPath: string): Promise<string> {
-        return new Promise((resolve, reject) => {
-            logger.info(`Начата конвертацию видео: ${inputPath}`);
-            const worker = new Worker(path.resolve(__dirname, 'convert-worker.mjs'), {
-                workerData: { inputPath },
-            });
-
-            worker.on('message', (outputPath) => {
-                logger.info(`Конвертация завершена: ${inputPath} в ${outputPath}`);
-                resolve(outputPath);
-            });
-            worker.on('error', (err) => {
-                logger.error(`Ошибка при конвертации файла ${inputPath}`);
-                reject(err);
-            });
-            worker.on('exit', (code) => {
-                if (code !== 0) reject(new Error(`Worker завершился с кодом ${code}`));
-            });
-        });
+        try {
+            logger.info(`Начата конвертация видео: ${inputPath}`);
+            const outputPath = await pool.exec('convertVideo', [inputPath]);
+            logger.info(`Конвертация завершена: ${inputPath} в ${outputPath}`);
+            return outputPath;
+        } catch (err: any) {
+            logger.error(`Ошибка при конвертации файла ${inputPath}`);
+            throw new InternalServerErrorException(err.message);
+        }
     }
 
     async generateUrlVideo(outputPath: string): Promise<string> {

@@ -14,5 +14,5 @@ app.use('/', videoRouter);
 app.use(errorMiddleware);
 
 app.listen(port, () => {
-    logger.info(`[server]: Server is running at ${port} port`);
+    logger.info(`Server is running at ${port} port`);
 });
