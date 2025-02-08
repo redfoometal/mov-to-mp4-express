@@ -35,7 +35,7 @@ API_URL=http://localhost:4000
 ### 4. Соберите и запустите контейнер
 
 ```sh
-docker compose up -d --build
+docker compose up -d
 ```
 
 ### 5. Остановка контейнера
